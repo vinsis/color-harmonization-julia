@@ -33,4 +33,12 @@ function distance(d::Degree, s::Sector{T})::T where T
     d in s ? 0.0 : min((s.from-d).val, (d-s.to).val)
 end
 
+function center_of_sector(s::Sector{T})::Degree{T} where T
+    s.from + (s.to - s.from)/2
+end
+
+function width_of_sector(s::Sector{T})::Degree{T} where T
+    s.to - s.from
+end
+
 distance(d::Degree, sectors::Array{<:Sector}) = minimum(distance(d,s) for s in sectors)
