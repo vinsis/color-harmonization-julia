@@ -1,4 +1,5 @@
 # color-harmonization-julia
+This is an implementation of [the paper](https://igl.ethz.ch/projects/color-harmonization/harmonization.pdf) by the same name.
 
 ## Setting up
 1. Clone the repo and then from the root directory type `] activate .`
