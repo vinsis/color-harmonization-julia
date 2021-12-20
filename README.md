@@ -5,7 +5,7 @@
 2. `] instantiate`
 
 ## Demo result
-![]()
+![](https://github.com/vinsis/color-harmonization-julia/blob/main/images/demo_result.png)
 
 ## To do
 - Solve the issue of nearby pixels getting mapped to far away values
