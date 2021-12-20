@@ -66,6 +66,18 @@ function harmonize(image::Matrix{<:RGB}, template::Template)
     return colorview(HSV, channels)
 end
 
+function harmonize(image::Matrix{<:RGB}, reference_image::Matrix{<:RGB}, template::Template)
+    hues, saturations = get_hue_and_saturation(imresize(reference_image, (100,100)))
+    α_min, _ = find_min_α(hues, saturations, template)
+    template = template .+ α_min
+    channels = channelview(HSV.(image))
+    hues = @. channels[1,:,:] |> deg2rad |> Radian
+    hue_to_new_hue = Dict(hue => shift_hue(hue, template) for hue in unique(hues))
+    hues = [rad2deg.(hue_to_new_hue[hue].val) for hue in hues]
+    channels[1,:,:] = hues
+    return colorview(HSV, channels)
+end
+
 image = load_image("./images/dinos.png");
 [image harmonize(image, templates["X"]) harmonize(image, templates["Y"]); 
  harmonize(image, templates["i"]) harmonize(image, templates["V"]) harmonize(image, templates["L"])]
