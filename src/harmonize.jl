@@ -4,9 +4,14 @@ import Statistics: mean
 using Roots
 using Images
 using Distributions: Normal, pdf
-using Plots
 
-templates = [
+function load_image(filepath::String)
+    image = load(filepath)
+    image = eltype(image) <: RGB ? image : RGB.(image)
+    return image
+end
+
+templates = Dict([
         (name="i", template=[ Sector(deg2rad.([0.0,18])...) ]),
         (name="V", template=[ Sector(deg2rad.([0.0,93.6])...) ]),
         (name="L", template=[ Sector(deg2rad.([-39.6,39.6])...), Sector(deg2rad.([81.0,99.0])...) ]),
@@ -14,14 +19,15 @@ templates = [
         (name="T", template=[ Sector(deg2rad.([0.0,180.0])...) ]),
         (name="Y", template=[ Sector(deg2rad.([-9.0,9.0])...), Sector(deg2rad.([133.2,226.8])...) ]),
         (name="X", template=[ Sector(deg2rad.([-46.6,46.6])...), Sector(deg2rad.([133.2,226.8])...) ])
-    ];
+    ]);
 
 const normal_dist = Normal()
-const Template{T} = Vector{Sector{T}}
-mean_distance(radians::Array{<:Radian}, t::Template, weights::Array{<:Real}) = mean([distance(r,t) for r in radians] .* weights)
+const Template = Vector{Sector}
+Base.in(r::Radian, t::Template) = any(r in s for s in t);
+mean_distance(radians::Array{Radian}, t::Template, weights::Array{Float32}) = mean([distance(r,t) for r in radians] .* weights)
 
 # find the angle by which sectors in a template must be rotated to get the minimum mean distance
-function find_min_α(hues::Matrix{Radian{T}}, saturations::Matrix{T}, template::Template{T}) where T
+function find_min_α(hues::Matrix{Radian}, saturations::Matrix{Float32}, template::Template)
     cost(α) = mean_distance(hues, template .+ α, saturations)
     α_min = find_zero(cost, [deg2rad(1), 2π], Roots.Brent())
     return α_min, cost(α_min)
@@ -40,29 +46,27 @@ function shift_hue(hue::Radian, template::Template)
         return hue + (2π - dist - extra_dist)
     end
 end
+
+function get_hue_and_saturation(image::Matrix{<:RGB})
+    channels = channelview(HSV.(image));
+    hues = @. channels[1,:,:] |> deg2rad |> Radian
+    saturations = channels[2,:,:]
+    return hues, saturations
+end
     
 function harmonize(image::Matrix{<:RGB}, template::Template)
-    channels = channelview(HSV.(image))
-    hues = @. channels[1,:,:] |> deg2rad |> Radian
-    saturations = convert(Array{Float64}, channels[2,:,:])
+    hues, saturations = get_hue_and_saturation(imresize(image, (100,100)))
     α_min, _ = find_min_α(hues, saturations, template)
     template = template .+ α_min
+    channels = channelview(HSV.(image))
+    hues = @. channels[1,:,:] |> deg2rad |> Radian
     hue_to_new_hue = Dict(hue => shift_hue(hue, template) for hue in unique(hues))
     hues = [rad2deg.(hue_to_new_hue[hue].val) for hue in hues]
     channels[1,:,:] = hues
     return colorview(HSV, channels)
 end
 
-function plot_hues(hues)
-    int_hues = floor.(copy(hues))
-    f(θ) = sum(floor(θ) .== int_hues)
-    plot(f, 0, 2π, proj=:polar, yaxis=false)
-end
-
-image = load("./images/stickers.jpg");
-# image = load("~/Downloads/cat.jpg");
-channels = channelview(HSV.(image));
-hues = channels[1,:,:];
-print(size(hues))
-plot_hues(hues)
+image = load_image("./images/dinos.png");
+[image harmonize(image, templates["X"]) harmonize(image, templates["Y"]); 
+ harmonize(image, templates["i"]) harmonize(image, templates["V"]) harmonize(image, templates["L"])]
 
