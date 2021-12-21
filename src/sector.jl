@@ -28,4 +28,5 @@ function distance(r::Radian, s::Sector)::Float32
 end
 
 width_of_sector(s::Sector) = counter_clockwise_angle(s.from, s.to)
+center_of_sector(s::Sector) = s.from + 0.5*width_of_sector(s)
 distance(r::Radian, sectors::Array{Sector}) = minimum(distance(r,s) for s in sectors)

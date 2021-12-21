@@ -53,32 +53,40 @@ function get_hue_and_saturation(image::Matrix{<:RGB})
     saturations = channels[2,:,:]
     return hues, saturations
 end
-    
-function harmonize(image::Matrix{<:RGB}, template::Template)
-    hues, saturations = get_hue_and_saturation(imresize(image, (100,100)))
-    α_min, _ = find_min_α(hues, saturations, template)
-    template = template .+ α_min
+
+function shift_hues_of(image::Matrix{<:RGB}, template::Template)
     channels = channelview(HSV.(image))
     hues = @. channels[1,:,:] |> deg2rad |> Radian
     hue_to_new_hue = Dict(hue => shift_hue(hue, template) for hue in unique(hues))
     hues = [rad2deg.(hue_to_new_hue[hue].val) for hue in hues]
     channels[1,:,:] = hues
     return colorview(HSV, channels)
+end
+    
+function harmonize(image::Matrix{<:RGB}, template::Template)
+    hues, saturations = get_hue_and_saturation(imresize(image, (100,100)))
+    α_min, _ = find_min_α(hues, saturations, template)
+    template = template .+ α_min
+    return shift_hues_of(image, template)
 end
 
 function harmonize(image::Matrix{<:RGB}, reference_image::Matrix{<:RGB}, template::Template)
     hues, saturations = get_hue_and_saturation(imresize(reference_image, (100,100)))
     α_min, _ = find_min_α(hues, saturations, template)
     template = template .+ α_min
-    channels = channelview(HSV.(image))
-    hues = @. channels[1,:,:] |> deg2rad |> Radian
-    hue_to_new_hue = Dict(hue => shift_hue(hue, template) for hue in unique(hues))
-    hues = [rad2deg.(hue_to_new_hue[hue].val) for hue in hues]
-    channels[1,:,:] = hues
-    return colorview(HSV, channels)
+    return shift_hues_of(image, template)
 end
 
 image = load_image("./images/dinos.png");
-[image harmonize(image, templates["X"]) harmonize(image, templates["Y"]); 
+[image harmonize(image, templates["X"]) harmonize(image, templates["Y"])
  harmonize(image, templates["i"]) harmonize(image, templates["V"]) harmonize(image, templates["L"])]
 
+reference_image = load_image("./images/argentina_flag.png");
+[image harmonize(image, reference_image, templates["i"])
+ harmonize(image, reference_image, templates["I"]) harmonize(image, reference_image, templates["L"])]
+image = load_image("/Users/sisovina/Downloads/group_photo.jpg");
+image = imresize(image, ratio=0.5);
+reference_image = load_image("/Users/sisovina/Downloads/autumn.jpg");
+reference_image = imresize(reference_image, ratio=0.5);
+[image harmonize(image, reference_image, templates["i"]); 
+ harmonize(image, reference_image, templates["I"]) harmonize(image, reference_image, templates["L"])]
